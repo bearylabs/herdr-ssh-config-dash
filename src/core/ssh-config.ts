@@ -75,6 +75,10 @@ export async function discoverSshAliases(options: DiscoveryOptions = {}): Promis
             } else {
               const current = aliases[found]!; aliases[found] = { ...current, sources: [...current.sources, source] };
             }
+            // A Host directive represents one picker entry. OpenSSH may apply
+            // the block to more names, but only its first selectable literal
+            // token is exposed here.
+            break;
           }
         } else if (directive.keyword === "include") {
           for (const pattern of directive.args) {

@@ -14,14 +14,21 @@ test("lexes quoted, escaped and commented directives", () => {
   assert.throws(() => lexArguments("'oops"), /unterminated/);
   assert.throws(() => parseDirective("Host"), /missing argument/);
 });
-test("discovers mixed literals, excludes patterns and ambiguous targets, and deduplicates case-insensitively", async (t) => {
+test("takes only the first selectable literal from each Host directive and deduplicates globally", async (t) => {
   const root = await home(t);
-  await writeFile(join(root, ".ssh/config"), "Host build *.corp !old other build BUILD foo@bar host:22 path/name comma,name foo#bar\nHost -bad foo? bar[0]\n");
+  await writeFile(join(root, ".ssh/config"), [
+    "Host build later-alias",
+    "Host *.corp !old other ignored-alias",
+    "Host BUILD another-ignored-alias",
+    "Host foo@bar host:22 path/name comma,name foo#bar final-ignored-alias",
+    "Host -bad foo? bar[0]",
+    "",
+  ].join("\n"));
   const found = await discoverSshAliases({ home: root });
-  assert.deepEqual(found.aliases.map((a) => a.name), ["build", "other", "foo#bar"]);
-  assert.equal(found.aliases[0]?.sources.length, 3);
+  assert.deepEqual(found.aliases.map((alias) => alias.name), ["build", "other", "foo#bar"]);
+  assert.equal(found.aliases[0]?.sources.length, 2);
 });
-test("expands relative, tilde and sorted nested glob includes and guards cycles", async (t) => { const root = await home(t); await mkdir(join(root, ".ssh/conf.d")); await writeFile(join(root, ".ssh/config"), "Include conf.d/*.conf ~/.ssh/extra\nHost root\n"); await writeFile(join(root, ".ssh/conf.d/b.conf"), "Host beta\n"); await writeFile(join(root, ".ssh/conf.d/a.conf"), "Include config\nHost alpha\n"); await writeFile(join(root, ".ssh/extra"), "Host extra\n"); const found = await discoverSshAliases({ home: root }); assert.deepEqual(found.aliases.map((a) => a.name), ["alpha", "beta", "extra", "root"]); assert.ok(found.warnings.some((w) => w.includes("cycle"))); });
+test("expands relative, tilde and sorted nested glob includes and guards cycles", async (t) => { const root = await home(t); await mkdir(join(root, ".ssh/conf.d")); await writeFile(join(root, ".ssh/config"), "Include conf.d/*.conf ~/.ssh/extra\nHost root\n"); await writeFile(join(root, ".ssh/conf.d/b.conf"), "Host beta\nHost ALPHA later\n"); await writeFile(join(root, ".ssh/conf.d/a.conf"), "Include config\nHost alpha\n"); await writeFile(join(root, ".ssh/extra"), "Host extra\n"); const found = await discoverSshAliases({ home: root }); assert.deepEqual(found.aliases.map((a) => a.name), ["alpha", "beta", "extra", "root"]); assert.equal(found.aliases[0]?.sources.length, 2); assert.ok(found.warnings.some((w) => w.includes("cycle"))); });
 test("missing root is an empty state and missing optional globs are harmless", async (t) => { const root = await home(t); let found = await discoverSshAliases({ home: root }); assert.equal(found.rootExists, false); await writeFile(join(root, ".ssh/config"), "Include missing/*.conf\nHost yes\n"); found = await discoverSshAliases({ home: root }); assert.deepEqual(found.aliases.map((a) => a.name), ["yes"]); assert.deepEqual(found.warnings, []); });
 test("uses the configured home for environment includes and ignores hidden glob entries", async (t) => {
   const root = await home(t);

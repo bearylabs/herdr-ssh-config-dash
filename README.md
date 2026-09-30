@@ -15,7 +15,9 @@ Machine setup can SSH to the host, install/start/update the remote Herdr server,
 
 ## SSH config support
 
-The picker reads `~/.ssh/config` without evaluating it (so `Match exec` is never executed). It supports case-insensitive directives, quotes, escapes, comments, multiple Host/Include values, relative paths (based at `~/.ssh`), `~`, `${VAR}`, sorted globs, nested includes, and cycle/size limits. Literal positive Host tokens are listed; wildcard (`*`, `?`, bracket pattern), negated, option-like, and ambiguous destination tokens (for example values containing `@`, `:`, `/`, `\\`, or `,`) are excluded. Unreadable optional includes and unsupported `%` or `~user` expansions appear as warnings.
+The picker reads `~/.ssh/config` without evaluating it (so `Match exec` is never executed). It supports case-insensitive directives, quotes, escapes, comments, multiple Include values, relative paths (based at `~/.ssh`), `~`, `${VAR}`, sorted globs, nested includes, and cycle/size limits.
+
+Each individual `Host` directive contributes at most one picker entry: the first valid literal positive token on that directive. Earlier wildcard or negated tokens are skipped while looking for that first selectable token, and every token after it is ignored. For example, `Host *.example !legacy build backup` contributes only `build`. Wildcard (`*`, `?`, bracket pattern), negated, option-like, and ambiguous destination tokens (for example values containing `@`, `:`, `/`, `\\`, or `,`) are not selectable. Deduplication remains case-insensitive across all directives and included files, preserving the first spelling and collecting duplicate source locations. Unreadable optional includes and unsupported `%` or `~user` expansions appear as warnings.
 
 ### Optional host exclusions
 
