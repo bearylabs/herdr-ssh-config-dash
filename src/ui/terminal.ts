@@ -20,7 +20,7 @@ export class Terminal {
     try { this.enterUi(); } catch (error) { this.stop(); throw error; }
   }
   paint(content: string): void { if (this.active && !this.suspended) this.output.write(`\u001b[?2026h\u001b[H\u001b[2J${content}\u001b[0m\u001b[?25l\u001b[?2026l`); }
-  suspendForInteractive(): void { if (!this.active || this.suspended) return; this.suspended = true; this.input.off("keypress", this.keyHandler); try { this.input.setRawMode(false); } catch {} try { this.output.write("\u001b[0m\u001b[?25h\u001b[?1049l\r\n"); } catch {} }
+  suspendForInteractive(): void { if (!this.active || this.suspended) return; this.suspended = true; this.input.off("keypress", this.keyHandler); try { this.input.setRawMode(false); } catch {} try { this.input.pause(); } catch {} try { this.output.write("\u001b[0m\u001b[?25h\u001b[?1049l\r\n"); } catch {} }
   resumeAfterInteractive(): void { if (!this.active || !this.suspended) return; this.suspended = false; this.enterUi(); }
   stop(): void {
     if (!this.active) return; this.active = false; this.input.off("keypress", this.keyHandler); this.output.off("resize", this.resizeHandler);

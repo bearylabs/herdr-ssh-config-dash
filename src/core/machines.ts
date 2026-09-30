@@ -17,17 +17,19 @@ export class HerdrService {
     if (result.code !== 0) throw new Error(commandError(result.stderr || result.stdout, result.code));
   }
   async removeAll(alias: string, signal?: AbortSignal, maxPasses = 4): Promise<number> {
-    let removed = 0; const failures: string[] = [];
+    let removed = 0;
     for (let pass = 0; pass < maxPasses; pass++) {
       const matches = (await this.list(signal)).filter((machine) => targetMatchesAlias(machine.target, alias));
       if (matches.length === 0) return removed;
+      const failures = new Map<string, string>();
       for (const machine of matches) {
         try { await this.captured(["machine", "remove", machine.id], signal); removed++; }
-        catch (error) { failures.push(`${shortId(machine.id)}: ${message(error)}`); }
+        catch (error) { failures.set(machine.id, `${shortId(machine.id)}: ${message(error)}`); }
       }
       const remaining = (await this.list(signal)).filter((machine) => targetMatchesAlias(machine.target, alias));
       if (remaining.length === 0) return removed; // Includes concurrently absent IDs.
-      if (failures.length) throw new Error(`Could not remove all profiles (${failures.join("; ")}); ${remaining.length} remain.`);
+      const persistentFailures = remaining.flatMap((machine) => failures.has(machine.id) ? [failures.get(machine.id)!] : []);
+      if (persistentFailures.length) throw new Error(`Could not remove all profiles (${persistentFailures.join("; ")}); ${remaining.length} remain.`);
     }
     throw new Error(`Machine removal did not converge after ${maxPasses} passes.`);
   }
@@ -58,7 +60,8 @@ export function extractTargetHost(target: string): string | undefined {
   if (!target || target.trim() !== target || /[\s\u0000-\u001f]/u.test(target) || target.startsWith("-")) return undefined;
   if (target.startsWith("ssh://")) {
     try {
-      const url = new URL(target); if (url.protocol !== "ssh:" || !url.hostname || url.password) return undefined;
+      const url = new URL(target);
+      if (url.protocol !== "ssh:" || !url.hostname || url.password || (target.slice(6).startsWith("@") && !url.username)) return undefined;
       return url.hostname.startsWith("[") && url.hostname.endsWith("]") ? url.hostname.slice(1, -1) : url.hostname;
     } catch { return undefined; }
   }

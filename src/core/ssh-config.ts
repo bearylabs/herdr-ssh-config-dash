@@ -1,4 +1,4 @@
-import { lstat, readFile, realpath, readdir } from "node:fs/promises";
+import { lstat, readFile, realpath, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 
 export type AliasSource = { readonly path: string; readonly line: number };
@@ -13,6 +13,7 @@ export async function discoverSshAliases(options: DiscoveryOptions = {}): Promis
   const configuredHome = options.home ?? process.env.HOME;
   if (!configuredHome) throw new Error("Cannot locate ~/.ssh/config because HOME is not set.");
   const home: string = configuredHome;
+  const environment: NodeJS.ProcessEnv = { ...process.env, HOME: home, ...options.env };
   const root = join(home, ".ssh", "config");
   const warnings: string[] = []; const aliases: SshAlias[] = []; const index = new Map<string, number>();
   const stack = new Set<string>(); let files = 0; let rootExists = true;
@@ -20,17 +21,23 @@ export async function discoverSshAliases(options: DiscoveryOptions = {}): Promis
 
   async function scan(path: string, depth: number, required: boolean): Promise<void> {
     if (depth > limits.depth) { warnings.push(`Include depth limit reached at ${path}.`); return; }
-    let stat;
-    try { stat = await lstat(path); } catch (error) {
+    let metadata;
+    try { metadata = await lstat(path); } catch (error) {
       if (required && isMissing(error)) { rootExists = false; return; }
       if (required) throw new Error(`Cannot read SSH config ${path}: ${message(error)}`);
       warnings.push(`Cannot read included config ${path}: ${message(error)}`); return;
     }
-    if (!stat.isFile() && !stat.isSymbolicLink()) { warnings.push(`Skipped non-regular SSH config ${path}.`); return; }
+    if (!metadata.isFile() && !metadata.isSymbolicLink()) { warnings.push(`Skipped non-regular SSH config ${path}.`); return; }
     let canonical: string;
     try { canonical = await realpath(path); } catch (error) {
       if (required) throw new Error(`Cannot resolve SSH config ${path}: ${message(error)}`);
       warnings.push(`Cannot resolve included config ${path}: ${message(error)}`); return;
+    }
+    try {
+      if (!(await stat(canonical)).isFile()) { warnings.push(`Skipped non-regular SSH config ${path}.`); return; }
+    } catch (error) {
+      if (required) throw new Error(`Cannot inspect SSH config ${path}: ${message(error)}`);
+      warnings.push(`Cannot inspect included config ${path}: ${message(error)}`); return;
     }
     if (stack.has(canonical)) { warnings.push(`Include cycle skipped at ${path}.`); return; }
     if (++files > limits.files) { warnings.push(`SSH config file limit (${limits.files}) reached.`); return; }
@@ -71,7 +78,7 @@ export async function discoverSshAliases(options: DiscoveryOptions = {}): Promis
           }
         } else if (directive.keyword === "include") {
           for (const pattern of directive.args) {
-            const expanded = expandVariables(pattern, options.env ?? process.env, home);
+            const expanded = expandVariables(pattern, environment, home);
             if (!expanded) { warnings.push(`${path}:${lineIndex + 1}: unsupported Include path ${pattern}.`); continue; }
             const absolute = isAbsolute(expanded) ? expanded : resolve(home, ".ssh", expanded);
             let matches: string[];
@@ -90,18 +97,21 @@ export async function discoverSshAliases(options: DiscoveryOptions = {}): Promis
 export function parseDirective(line: string): { keyword: string; args: string[] } | undefined {
   let i = 0; while (/\s/u.test(line[i] ?? "")) i++;
   if (i >= line.length || line[i] === "#") return undefined;
-  const start = i; while (i < line.length && !/[\s=#]/u.test(line[i]!)) i++;
+  const start = i; while (i < line.length && !/[\s=]/u.test(line[i]!)) i++;
   const keyword = line.slice(start, i).toLowerCase();
   while (/\s/u.test(line[i] ?? "")) i++;
   if (line[i] === "=") { i++; while (/\s/u.test(line[i] ?? "")) i++; }
-  return { keyword, args: lexArguments(line.slice(i)) };
+  const remainder = line.slice(i);
+  const args = lexArguments(remainder);
+  if ((keyword === "host" || keyword === "include") && args.length === 0 && !remainder.trimStart().startsWith("#")) throw new Error(`missing argument after ${keyword}`);
+  return { keyword, args };
 }
 
 export function lexArguments(value: string): string[] {
   const result: string[] = []; let token = ""; let quote: "'" | '"' | undefined; let active = false;
   for (let i = 0; i < value.length; i++) {
     const char = value[i]!;
-    if (!quote && char === "#") break;
+    if (!quote && char === "#" && !active) break;
     if (char === "\\") { if (i + 1 >= value.length) throw new Error("trailing escape"); token += value[++i]!; active = true; continue; }
     if (char === "'" || char === '"') {
       if (!quote) { quote = char; active = true; continue; }
@@ -116,12 +126,13 @@ export function lexArguments(value: string): string[] {
 }
 
 export function isLiteralAlias(value: string): boolean {
+  const ambiguousTarget = ["@", ",", ":", "/", "\\"].some((character) => value.includes(character));
   return value.length > 0 && !value.startsWith("!") && !value.startsWith("-") && !/[*?[]/u.test(value)
-    && !/[\s\u0000-\u001f\u007f]/u.test(value) && value.length <= 1024;
+    && !ambiguousTarget && !/[\s\u0000-\u001f\u007f]/u.test(value) && value.length <= 1024;
 }
 
 function expandVariables(value: string, env: NodeJS.ProcessEnv, home: string): string | undefined {
-  if (value.includes("%")) return undefined;
+  if (value.includes("%") || (value.startsWith("~") && value !== "~" && !value.startsWith(`~${sep}`))) return undefined;
   let result = value === "~" || value.startsWith(`~${sep}`) ? home + value.slice(1) : value;
   let missing = false;
   result = result.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/gu, (_all, key: string) => { const found = env[key]; if (found === undefined) missing = true; return found ?? ""; });
@@ -138,7 +149,10 @@ async function expandGlob(pattern: string): Promise<string[]> {
       if (!wildcard) { next.push(join(base, part)); continue; }
       let names: string[]; try { names = await readdir(base || "."); } catch (error) { if (isMissing(error)) continue; throw error; }
       const regex = globRegex(part);
-      for (const name of names.sort((a, b) => a.localeCompare(b))) if (regex.test(name)) next.push(join(base, name));
+      for (const name of names.sort((a, b) => a.localeCompare(b))) {
+        if (name.startsWith(".") && !part.startsWith(".")) continue;
+        if (regex.test(name)) next.push(join(base, name));
+      }
     }
     paths = next;
   }

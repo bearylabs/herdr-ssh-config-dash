@@ -13,7 +13,7 @@ Adding invokes Herdr with an inherited TTY. It can SSH to the host, install/star
 
 ## SSH config support
 
-The picker reads `~/.ssh/config` without evaluating it (so `Match exec` is never executed). It supports case-insensitive directives, quotes, escapes, comments, multiple Host/Include values, relative paths (based at `~/.ssh`), `~`, `${VAR}`, sorted globs, nested includes, and cycle/size limits. Literal positive Host tokens are listed; wildcard (`*`, `?`, bracket pattern) and negated tokens are excluded. Unreadable optional includes and unsupported `%` expansions appear as warnings.
+The picker reads `~/.ssh/config` without evaluating it (so `Match exec` is never executed). It supports case-insensitive directives, quotes, escapes, comments, multiple Host/Include values, relative paths (based at `~/.ssh`), `~`, `${VAR}`, sorted globs, nested includes, and cycle/size limits. Literal positive Host tokens are listed; wildcard (`*`, `?`, bracket pattern), negated, option-like, and ambiguous destination tokens (for example values containing `@`, `:`, `/`, `\\`, or `,`) are excluded. Unreadable optional includes and unsupported `%` or `~user` expansions appear as warnings.
 
 ## Install locally
 

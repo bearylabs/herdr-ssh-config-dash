@@ -5,8 +5,22 @@ import type { CommandResult, CommandRunner } from "../src/core/runner.js";
 const base: Machine = { id: "opaque-a", label: "different", target: "user@Build", session: "other", enabled: false, selected: false };
 class Fake implements CommandRunner { calls: Array<{ command: string; args: readonly string[]; interactive: boolean }> = []; responses: CommandResult[] = []; interactive: CommandResult = { code: 0, stdout: "", stderr: "" }; async run(command: string, args: readonly string[]): Promise<CommandResult> { this.calls.push({ command, args, interactive: false }); return this.responses.shift() ?? { code: 0, stdout: "[]", stderr: "" }; } async runInteractive(command: string, args: readonly string[]): Promise<CommandResult> { this.calls.push({ command, args, interactive: true }); return this.interactive; } }
 test("validates machine JSON and retains disabled duplicate profiles", () => { assert.equal(parseMachines(JSON.stringify([base]))[0]?.enabled, false); assert.throws(() => parseMachines("{}"), /unexpected/); assert.throws(() => parseMachines('[{"id":"x"}]'), /label/); });
-test("extracts only conservative SSH destination forms", () => { assert.equal(extractTargetHost("alias"), "alias"); assert.equal(extractTargetHost("me@alias"), "alias"); assert.equal(extractTargetHost("ssh://me@alias:222/a"), "alias"); assert.equal(extractTargetHost("ssh://me@[2001:db8::1]:22"), "2001:db8::1"); for (const x of ["a:22", "a b", "a@b@c", "-oProxy=x"]) assert.equal(extractTargetHost(x), undefined); assert.ok(targetMatchesAlias("user@Build", "build")); });
+test("extracts only conservative SSH destination forms", () => { assert.equal(extractTargetHost("alias"), "alias"); assert.equal(extractTargetHost("me@alias"), "alias"); assert.equal(extractTargetHost("ssh://me@alias:222/a"), "alias"); assert.equal(extractTargetHost("ssh://me@[2001:db8::1]:22"), "2001:db8::1"); for (const x of ["a:22", "a b", "a@b@c", "-oProxy=x", "ssh://@alias"]) assert.equal(extractTargetHost(x), undefined); assert.ok(targetMatchesAlias("user@Build", "build")); });
 test("reconciles by target, never label, across sessions and states", () => { const machines = [base, { ...base, id: "opaque-b", target: "ssh://build:22", enabled: true }, { ...base, id: "x", label: "build", target: "elsewhere" }]; const result = reconcile([{ name: "build", sources: [] }], machines); assert.deepEqual(result.rows[0]?.profiles.map((p) => p.id), ["opaque-a", "opaque-b"]); assert.equal(result.unmatched, 1); });
 test("uses exact argv and custom binary for interactive add", async () => { const fake = new Fake(), service = new HerdrService(fake, "/x/herdr"); await service.add("a; touch nope"); assert.deepEqual(fake.calls[0], { command: "/x/herdr", args: ["machine", "add", "a; touch nope", "--label", "a; touch nope", "--remote-session", "default"], interactive: true }); });
 test("removes all duplicate opaque IDs and no unrelated IDs", async () => { const fake = new Fake(); fake.responses.push({ code: 0, stdout: JSON.stringify([base, { ...base, id: "opaque-b" }, { ...base, id: "other", target: "other" }]), stderr: "" }, { code: 0, stdout: "", stderr: "" }, { code: 0, stdout: "", stderr: "" }, { code: 0, stdout: JSON.stringify([{ ...base, id: "other", target: "other" }]), stderr: "" }); const count = await new HerdrService(fake, "herdr-x").removeAll("build"); assert.equal(count, 2); assert.deepEqual(fake.calls.filter((c) => c.args[1] === "remove").map((c) => c.args[2]), ["opaque-a", "opaque-b"]); });
+test("continues convergence when a failed ID disappeared but a new exact-target ID appeared", async () => {
+  const fake = new Fake();
+  const replacement = { ...base, id: "opaque-new", target: "BUILD" };
+  fake.responses.push(
+    { code: 0, stdout: JSON.stringify([base]), stderr: "" },
+    { code: 1, stdout: "", stderr: "machine profile was not found" },
+    { code: 0, stdout: JSON.stringify([replacement]), stderr: "" },
+    { code: 0, stdout: JSON.stringify([replacement]), stderr: "" },
+    { code: 0, stdout: "", stderr: "" },
+    { code: 0, stdout: "[]", stderr: "" },
+  );
+  assert.equal(await new HerdrService(fake).removeAll("build"), 1);
+  assert.deepEqual(fake.calls.filter((call) => call.args[1] === "remove").map((call) => call.args[2]), ["opaque-a", "opaque-new"]);
+});
 test("opens popup with distinct plugin id", async () => { const fake = new Fake(); await new HerdrService(fake).openPopup("/a b"); assert.deepEqual(fake.calls[0]?.args.slice(0, 7), ["plugin", "pane", "open", "--plugin", "herdr-ssh-config-picker", "--entrypoint", "picker"]); });
