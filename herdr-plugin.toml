@@ -1,0 +1,27 @@
+id = "herdr-ssh-config-picker"
+name = "Herdr SSH Config Picker"
+version = "1.0.0"
+min_herdr_version = "0.9.1"
+description = "Add and remove Herdr machines from literal SSH config hosts"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["npm", "ci"]
+
+[[build]]
+command = ["npm", "run", "build"]
+
+[[actions]]
+id = "manage"
+title = "Manage SSH config machines"
+description = "Immediately add or remove machines for literal hosts in ~/.ssh/config."
+contexts = ["global"]
+command = ["node", "dist/open-popup.js"]
+
+[[panes]]
+id = "picker"
+title = "SSH config machines"
+placement = "popup"
+width = 100
+height = "72%"
+command = ["node", "--input-type=module", "--eval", "await import(process.env.HERDR_PLUGIN_ROOT + '/dist/manager.js')"]
