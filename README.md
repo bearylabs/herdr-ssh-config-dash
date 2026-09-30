@@ -17,6 +17,18 @@ Machine setup can SSH to the host, install/start/update the remote Herdr server,
 
 The picker reads `~/.ssh/config` without evaluating it (so `Match exec` is never executed). It supports case-insensitive directives, quotes, escapes, comments, multiple Host/Include values, relative paths (based at `~/.ssh`), `~`, `${VAR}`, sorted globs, nested includes, and cycle/size limits. Literal positive Host tokens are listed; wildcard (`*`, `?`, bracket pattern), negated, option-like, and ambiguous destination tokens (for example values containing `@`, `:`, `/`, `\\`, or `,`) are excluded. Unreadable optional includes and unsupported `%` or `~user` expansions appear as warnings.
 
+### Optional host exclusions
+
+Create `$HERDR_PLUGIN_CONFIG_DIR/config.json` to hide selected aliases from this picker:
+
+```json
+{
+  "excludeHosts": ["personal-host", "lab-?", "*.private.example"]
+}
+```
+
+Patterns are matched against the entire alias, case-insensitively. Only `*` (zero or more characters) and `?` (one character) are special; all other characters are literal. There are no built-in hostname exclusions. A missing file means no exclusions, while malformed JSON, unknown fields, or invalid patterns produce a visible popup error rather than silently applying a partial configuration.
+
 ## Install locally
 
 ```sh
@@ -32,9 +44,10 @@ Run the global action `herdr-ssh-config-picker.manage` from Herdr.
 
 - `↑`/`↓` or `j`/`k`: move
 - Space or Enter: immediately add, or confirm removal of all matches
-- `r`: reload SSH config and native machine state
+- `/`: edit a case-insensitive alias filter; Backspace edits, Enter accepts, and Escape clears it
+- `r`: reload SSH config, plugin configuration, and native machine state
 - `?`: help
-- `q`, Escape, or Ctrl-C: close
+- `q` or Ctrl-C: close; Escape clears an active filter before closing
 
 All state is refreshed immediately before mutation and after success, cancellation, or failure. Duplicate and disabled profiles are annotated; profiles that do not match a displayed alias are only counted and are never changed.
 
