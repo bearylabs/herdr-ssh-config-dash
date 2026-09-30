@@ -16,6 +16,23 @@ export class HerdrService {
     const result = await this.runner.runInteractive(this.binary, ["machine", "add", alias, "--label", alias, "--remote-session", "default"]);
     if (result.code !== 0) throw new Error(commandError(result.stderr || result.stdout, result.code));
   }
+  async setAllEnabled(alias: string, enabled: boolean, signal?: AbortSignal, maxPasses = 4): Promise<number> {
+    let changed = 0;
+    for (let pass = 0; pass < maxPasses; pass++) {
+      const pending = (await this.list(signal)).filter((machine) => targetMatchesAlias(machine.target, alias) && machine.enabled !== enabled);
+      if (pending.length === 0) return changed;
+      const failures = new Map<string, string>();
+      for (const machine of pending) {
+        try { await this.captured(["machine", enabled ? "enable" : "disable", machine.id], signal); changed++; }
+        catch (error) { failures.set(machine.id, `${shortId(machine.id)}: ${message(error)}`); }
+      }
+      const remaining = (await this.list(signal)).filter((machine) => targetMatchesAlias(machine.target, alias) && machine.enabled !== enabled);
+      if (remaining.length === 0) return changed;
+      const persistentFailures = remaining.flatMap((machine) => failures.has(machine.id) ? [failures.get(machine.id)!] : []);
+      if (persistentFailures.length) throw new Error(`Could not ${enabled ? "enable" : "disable"} all profiles (${persistentFailures.join("; ")}); ${remaining.length} remain ${enabled ? "disabled" : "enabled"}.`);
+    }
+    throw new Error(`Machine ${enabled ? "enable" : "disable"} did not converge after ${maxPasses} passes.`);
+  }
   async removeAll(alias: string, signal?: AbortSignal, maxPasses = 4): Promise<number> {
     let removed = 0;
     for (let pass = 0; pass < maxPasses; pass++) {

@@ -33,7 +33,7 @@ export function render(state: ViewState, width: number, height: number, tick = 0
       lines.push("Type/Backspace · Enter accept · Esc clear");
     } else {
       lines.push(state.busy ? `${spinner(tick)} ${state.busy}` : selectedRow ? `${selectedRow.profiles.length ? "[✓]" : "[ ]"} ${selectedRow.alias}` : state.filter ? "No filter matches." : "No literal hosts.");
-      lines.push(state.error ? `Error: ${state.error}` : state.notice ?? (state.warnings[0] ? `Warning: ${state.warnings[0]}` : "Space/Enter toggle · / filter · q close"));
+      lines.push(state.error ? `Error: ${state.error}` : state.notice ?? (state.warnings[0] ? `Warning: ${state.warnings[0]}` : "Space toggle state · x remove · / filter"));
     }
     return lines.slice(0, h).map((line) => crop(clean(line), w)).join("\r\n");
   }
@@ -54,9 +54,14 @@ export function render(state: ViewState, width: number, height: number, tick = 0
     const start = Math.max(0, Math.min(state.selected - Math.floor(available / 2), state.rows.length - available));
     for (let i = start; i < Math.min(state.rows.length, start + available); i++) {
       const item = state.rows[i]!, active = i === state.selected, countProfiles = item.profiles.length;
-      const disabled = item.profiles.filter((profile) => !profile.enabled).length;
-      const status = !countProfiles ? `${dim}not saved${reset}` : countProfiles === 1 ? `${green}saved${reset}${disabled ? `${yellow}, disabled${reset}` : ""}` : `${yellow}saved ×${countProfiles}${reset}${disabled ? ` (${disabled} disabled)` : ""}`;
-      listLines.push(`${active ? bold : ""} ${active ? `${cyan}▶${reset}` : " "} ${countProfiles ? `${green}[✓]${reset}` : "[ ]"} ${pad(clean(item.alias), Math.max(10, Math.floor(w * .42)))}  ${status}${reset}`);
+      const enabled = item.profiles.filter((profile) => profile.enabled).length;
+      const disabled = countProfiles - enabled;
+      const status = !countProfiles ? `${dim}not saved${reset}`
+        : enabled === countProfiles ? `${green}enabled${reset}${countProfiles > 1 ? ` ×${countProfiles}` : ""}`
+        : disabled === countProfiles ? `${yellow}disabled${reset}${countProfiles > 1 ? ` ×${countProfiles}` : ""}`
+        : `${yellow}mixed${reset} (${enabled} enabled, ${disabled} disabled)`;
+      const marker = !countProfiles ? "[ ]" : enabled ? `${green}[●]${reset}` : `${yellow}[○]${reset}`;
+      listLines.push(`${active ? bold : ""} ${active ? `${cyan}▶${reset}` : " "} ${marker} ${pad(clean(item.alias), Math.max(10, Math.floor(w * .42)))}  ${status}${reset}`);
     }
   }
   lines.push(...listLines.slice(0, available));
@@ -79,11 +84,11 @@ export function render(state: ViewState, width: number, height: number, tick = 0
     lines.push(`  ${bold}Filter aliases${reset}  ${cyan}/${reset}${clean(state.filter ?? "")}${bold}_${reset}`);
     lines.push(`  ${dim}Type to narrow · Backspace edit · Enter accept · Esc clear${reset}`);
   } else if (state.help) {
-    lines.push(`  ${bold}Keys${reset}  ↑/↓ or j/k select · Space/Enter add or remove · / filter · r refresh`);
-    lines.push(`        ? help · q close · Esc clear filter/close`);
+    lines.push(`  ${bold}Keys${reset}  ↑/↓ or j/k select · Space/Enter add/enable/disable · x remove`);
+    lines.push(`        / filter · r refresh · ? help · q close · Esc clear filter/close`);
   } else {
     const activeFilter = state.filter ? ` · filter /${clean(state.filter)}` : "";
-    lines.push(`  ${dim}↑↓ select · Space/Enter toggle · / filter · r refresh · ? help · q close${activeFilter}${reset}`);
+    lines.push(`  ${dim}↑↓ select · Space/Enter add/enable/disable · x remove · / filter · r refresh · ? help · q close${activeFilter}${reset}`);
   }
   if (!state.confirmation) {
     if (state.busy && state.rows.length) lines.push(`  ${cyan}${spinner(tick)}${reset} ${crop(clean(state.busy), w - 6)}`);

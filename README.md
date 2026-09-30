@@ -5,7 +5,9 @@ A Herdr 0.9.1+ plugin that reconciles literal `Host` aliases from `~/.ssh/config
 ## Behavior
 
 - `[ ]` means no saved Herdr profile targets the alias. Space or Enter immediately runs `herdr machine add <alias> --label <alias> --remote-session default`.
-- `[✓]` means one or more profiles target the alias, including disabled profiles. Space or Enter asks for destructive confirmation and then removes **every** matching profile by its opaque ID.
+- `[●]` means matching profiles are enabled. Space or Enter disables every matching profile by opaque ID while retaining it in Herdr.
+- `[○]` means all matching profiles are disabled. Space or Enter enables every matching profile again. Duplicate profiles with mixed states are normalized to disabled first.
+- `x` asks for destructive confirmation and then removes **every** matching profile by its opaque ID.
 - Matching extracts the destination from bare aliases, `user@alias`, and `ssh://` targets, then compares the host and alias exactly, case-insensitively. Labels, resolved `HostName` values, and unrelated profiles are never used as identity.
 - Removing forgets local profiles, causing them to disappear from Herdr's native sidebar after its normal reload. It does not stop remote sessions or agents. The plugin never reads or edits Herdr's private catalog.
 
@@ -45,7 +47,8 @@ Run the global action `herdr-ssh-config-picker.manage` from Herdr.
 ## Controls
 
 - `↑`/`↓` or `j`/`k`: move
-- Space or Enter: immediately add, or confirm removal of all matches
+- Space or Enter: add an absent alias, disable enabled profiles, or re-enable disabled profiles
+- `x`: confirm and permanently remove all matching saved profiles
 - `/`: edit a case-insensitive alias filter; Backspace edits, Enter accepts, and Escape clears it
 - `r`: reload SSH config, plugin configuration, and native machine state
 - `?`: help

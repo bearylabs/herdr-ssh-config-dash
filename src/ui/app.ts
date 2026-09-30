@@ -8,7 +8,7 @@ import { render } from "./view.js";
 type Confirmation = { readonly alias: string; readonly count: number };
 type Discover = () => Promise<Discovery>;
 type AppTerminal = Pick<Terminal, "size" | "start" | "stop" | "paint" | "suspendForInteractive" | "resumeAfterInteractive">;
-type AppService = Pick<HerdrService, "list" | "add" | "removeAll">;
+type AppService = Pick<HerdrService, "list" | "add" | "setAllEnabled" | "removeAll">;
 
 async function discoverConfigured(): Promise<Discovery> {
   const [inventory, config] = await Promise.all([
@@ -81,6 +81,7 @@ export class PickerApp {
       else if (key.text === "k") this.move(-1);
       else if (key.text === "r") void this.refresh();
       else if (key.text === " ") void this.toggle();
+      else if (key.text.toLowerCase() === "x") this.confirmRemove();
       else if (key.text === "/") this.beginFilter();
       else if (key.text === "?") { this.help = !this.help; this.paint(); }
     }
@@ -156,7 +157,17 @@ export class PickerApp {
       const row = this.rows.find((item) => item.alias.toLowerCase() === alias.toLowerCase());
       if (!row) throw new Error(`${alias} is no longer available in the current SSH config view.`);
       this.selectedAlias = row.alias;
-      if (row.profiles.length) { this.confirmation = { alias: row.alias, count: row.profiles.length }; return; }
+      if (row.profiles.length) {
+        const enable = row.profiles.every((profile) => !profile.enabled);
+        this.busy = `${enable ? "Enabling" : "Disabling"} ${row.alias}…`;
+        this.paint();
+        const changed = await this.service.setAllEnabled(row.alias, enable, signal);
+        await this.load(signal);
+        const current = this.rows.find((item) => item.alias.toLowerCase() === row.alias.toLowerCase());
+        if (!current?.profiles.length || current.profiles.some((profile) => profile.enabled !== enable)) throw new Error(`Herdr did not ${enable ? "enable" : "disable"} every profile for ${row.alias}.`);
+        this.notice = `${enable ? "Enabled" : "Disabled"} ${changed} profile${changed === 1 ? "" : "s"} for ${row.alias}.`;
+        return;
+      }
       this.busy = `Adding ${row.alias}…`;
       this.paint();
       this.terminal.suspendForInteractive();
@@ -168,6 +179,15 @@ export class PickerApp {
       if (!saved?.profiles.length) throw new Error(`Herdr completed but no saved profile targets ${row.alias}.`);
       this.notice = `Added ${row.alias}. It is now available in Herdr.`;
     });
+  }
+
+  private confirmRemove(): void {
+    const row = this.current();
+    if (!row?.profiles.length) { this.notice = row ? `${row.alias} is not saved.` : undefined; this.paint(); return; }
+    this.confirmation = { alias: row.alias, count: row.profiles.length };
+    this.error = undefined;
+    this.notice = undefined;
+    this.paint();
   }
 
   private handleConfirmation(key: Key): void {
