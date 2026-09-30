@@ -15,6 +15,13 @@ test("optional config excludes exact names and glob patterns case-insensitively"
   assert.deepEqual(excludeConfiguredHosts(aliases, config.excludeHosts).map((alias) => alias.name), ["work.ghe.com", "gitlab.local"]);
 });
 
+test("supports the requested GitHub exclusions without making them defaults", async (t) => {
+  const root = await configDir(t);
+  await writeFile(join(root, "config.json"), JSON.stringify({ excludeHosts: ["github.com", "*.ghe.com"] }));
+  const config = await loadPickerConfig(root);
+  assert.deepEqual(excludeConfiguredHosts(aliases, config.excludeHosts).map((alias) => alias.name), ["WORK.GHE.NET", "gitlab.local"]);
+});
+
 test("missing config directory or file has no global exclusions", async (t) => {
   const root = await configDir(t);
   assert.deepEqual(await loadPickerConfig(undefined), { excludeHosts: [] });

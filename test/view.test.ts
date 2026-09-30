@@ -24,4 +24,15 @@ test("renders active filter and filter input guidance", () => {
   assert.match(frame, /Backspace edit/);
 });
 
+test("keeps destructive and filter controls visible in short compact views", () => {
+  const confirmation = strip(render({ rows: [row], selected: 0, unmatched: 0, warnings: [], rootExists: true, help: false, confirmation: { alias: "prod", count: 1 } }, 80, 8));
+  assert.match(confirmation, /Remove 1 profile for prod/);
+  assert.match(confirmation, /y\/Enter remove · n\/Esc cancel/);
+
+  const filter = strip(render({ rows: [row], totalRows: 3, selected: 0, unmatched: 0, warnings: [], rootExists: true, help: false, filter: "pro", filterEditing: true }, 80, 8));
+  assert.match(filter, /\/pro_/);
+  assert.match(filter, /1\/3 matches/);
+  assert.match(filter, /Enter accept · Esc clear/);
+});
+
 function strip(value: string): string { return value.replace(/\u001b\[[0-9;?]*[A-Za-z]/gu, ""); }

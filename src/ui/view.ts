@@ -22,13 +22,20 @@ export type ViewState = {
 export function render(state: ViewState, width: number, height: number, tick = 0): string {
   const w = Math.max(1, width), h = Math.max(1, height), selectedRow = state.rows[state.selected];
   const totalRows = state.totalRows ?? state.rows.length;
-  if (w < 36 || h < 8) {
+  if (w < 36 || h < 10) {
     const filter = state.filter !== undefined && (state.filter || state.filterEditing) ? ` /${state.filter}${state.filterEditing ? "_" : ""}` : "";
-    return [
-      `SSH CONFIG MACHINES${filter}`,
-      state.busy ? `${spinner(tick)} ${state.busy}` : selectedRow ? `${selectedRow.profiles.length ? "[✓]" : "[ ]"} ${selectedRow.alias}` : state.filter ? "No filter matches." : "No literal hosts.",
-      state.error ? `Error: ${state.error}` : "Space/Enter toggle · / filter · q close",
-    ].slice(0, h).map((line) => crop(clean(line), w)).join("\r\n");
+    const lines = [`SSH CONFIG MACHINES${filter}`];
+    if (state.confirmation) {
+      lines.push(`Remove ${state.confirmation.count} profile${state.confirmation.count === 1 ? "" : "s"} for ${state.confirmation.alias}?`);
+      lines.push("y/Enter remove · n/Esc cancel");
+    } else if (state.filterEditing) {
+      lines.push(`/${state.filter ?? ""}_ · ${state.rows.length}/${totalRows} matches`);
+      lines.push("Type/Backspace · Enter accept · Esc clear");
+    } else {
+      lines.push(state.busy ? `${spinner(tick)} ${state.busy}` : selectedRow ? `${selectedRow.profiles.length ? "[✓]" : "[ ]"} ${selectedRow.alias}` : state.filter ? "No filter matches." : "No literal hosts.");
+      lines.push(state.error ? `Error: ${state.error}` : state.notice ?? (state.warnings[0] ? `Warning: ${state.warnings[0]}` : "Space/Enter toggle · / filter · q close"));
+    }
+    return lines.slice(0, h).map((line) => crop(clean(line), w)).join("\r\n");
   }
 
   const count = state.filter ? `${state.rows.length}/${totalRows}` : String(totalRows);
