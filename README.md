@@ -9,7 +9,9 @@ A Herdr 0.9.1+ plugin that reconciles literal `Host` aliases from `~/.ssh/config
 - Matching extracts the destination from bare aliases, `user@alias`, and `ssh://` targets, then compares the host and alias exactly, case-insensitively. Labels, resolved `HostName` values, and unrelated profiles are never used as identity.
 - Removing forgets local profiles, causing them to disappear from Herdr's native sidebar after its normal reload. It does not stop remote sessions or agents. The plugin never reads or edits Herdr's private catalog.
 
-Adding invokes Herdr with an inherited TTY. It can SSH to the host, install/start/update the remote Herdr server, and request authentication or approval. The popup safely leaves raw/alternate-screen mode while that command runs and restores itself afterward.
+Adding invokes Herdr with an inherited TTY through the account's default login shell in interactive login mode. This loads fish or POSIX-shell startup configuration, including a stable `SSH_AUTH_SOCK` established there, while the Herdr command and all arguments remain separate values and are never interpolated into shell source. Fish, sh, bash, dash, ash, zsh, and ksh are supported; an unsupported login shell produces a clear error. Captured list/remove commands still execute Herdr directly.
+
+Machine setup can SSH to the host, install/start/update the remote Herdr server, and request authentication or approval. The popup safely leaves raw/alternate-screen mode while that command runs and restores itself afterward. If a nonstandard SSH key is passphrase-protected, it must still be loaded into the stable agent once (for example with `ssh-add`); the plugin does not hardcode key paths, agent sockets, or credentials.
 
 ## SSH config support
 
