@@ -1,5 +1,5 @@
-id = "herdr-ssh-config-picker"
-name = "Herdr SSH Config Picker"
+id = "herdr-ssh-config-dash"
+name = "Herdr SSH Config Dash"
 version = "1.0.0"
 min_herdr_version = "0.9.1"
 description = "Add and remove Herdr machines from literal SSH config hosts"

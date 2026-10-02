@@ -18,7 +18,7 @@ test("fish login invocation carries hostile-looking values only in argv", () => 
 test("POSIX login invocation carries hostile-looking values only as positional parameters", () => {
   assert.deepEqual(loginShellInvocation("/bin/zsh", "/path/herdr;nope", hostile), {
     command: "/bin/zsh",
-    args: ["-l", "-i", "-c", 'exec "$@"', "herdr-ssh-config-picker", "/path/herdr;nope", ...hostile],
+    args: ["-l", "-i", "-c", 'exec "$@"', "herdr-ssh-config-dash", "/path/herdr;nope", ...hostile],
   });
 });
 

@@ -1,6 +1,6 @@
-# Herdr SSH Config Picker
+# Herdr SSH Config Dash
 
-A Herdr 0.9.1+ plugin that reconciles literal `Host` aliases from `~/.ssh/config` with Herdr's saved machines. It is independent from the older `herdr-remote-picker` plugin and uses the distinct id `herdr-ssh-config-picker`.
+A Herdr 0.9.1+ plugin that reconciles literal `Host` aliases from `~/.ssh/config` with Herdr's saved machines. It is independent from the older `herdr-remote-picker` plugin and uses the distinct id `herdr-ssh-config-dash`.
 
 ## Behavior
 
@@ -42,7 +42,7 @@ herdr plugin link "$PWD"
 herdr plugin list
 ```
 
-Run the global action `herdr-ssh-config-picker.manage` from Herdr.
+Run the global action `herdr-ssh-config-dash.manage` from Herdr.
 
 ## Controls
 

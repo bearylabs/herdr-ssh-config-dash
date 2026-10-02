@@ -24,4 +24,4 @@ test("continues convergence when a failed ID disappeared but a new exact-target 
   assert.equal(await new HerdrService(fake).removeAll("build"), 1);
   assert.deepEqual(fake.calls.filter((call) => call.args[1] === "remove").map((call) => call.args[2]), ["opaque-a", "opaque-new"]);
 });
-test("opens popup with distinct plugin id", async () => { const fake = new Fake(); await new HerdrService(fake).openPopup("/a b"); assert.deepEqual(fake.calls[0]?.args.slice(0, 7), ["plugin", "pane", "open", "--plugin", "herdr-ssh-config-picker", "--entrypoint", "picker"]); });
+test("opens popup with distinct plugin id", async () => { const fake = new Fake(); await new HerdrService(fake).openPopup("/a b"); assert.deepEqual(fake.calls[0]?.args.slice(0, 7), ["plugin", "pane", "open", "--plugin", "herdr-ssh-config-dash", "--entrypoint", "picker"]); });

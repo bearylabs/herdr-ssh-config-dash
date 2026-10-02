@@ -63,7 +63,7 @@ export function loginShellInvocation(shell: string, command: string, args: Reado
   if (posixNames.has(name) || wrappedPosix) {
     // The source is constant. The executable and its arguments are positional
     // parameters, so no user-controlled value is interpolated into shell code.
-    return { command: shell, args: ["-l", "-i", "-c", "exec \"$@\"", "herdr-ssh-config-picker", command, ...args] };
+    return { command: shell, args: ["-l", "-i", "-c", "exec \"$@\"", "herdr-ssh-config-dash", command, ...args] };
   }
   throw new Error(`Cannot run interactive machine setup with unsupported login shell ${shell}. Supported shells: fish, sh, bash, dash, ash, zsh, and ksh.`);
 }

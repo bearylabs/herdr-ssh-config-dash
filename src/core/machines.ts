@@ -51,7 +51,7 @@ export class HerdrService {
     throw new Error(`Machine removal did not converge after ${maxPasses} passes.`);
   }
   async openPopup(cwd: string): Promise<void> {
-    const pluginId = process.env.HERDR_PLUGIN_ID || "herdr-ssh-config-picker";
+    const pluginId = process.env.HERDR_PLUGIN_ID || "herdr-ssh-config-dash";
     await this.captured(["plugin", "pane", "open", "--plugin", pluginId, "--entrypoint", "picker", "--placement", "popup", "--width", "100", "--height", "72%", "--cwd", cwd, "--focus"]);
   }
   private async captured(args: ReadonlyArray<string>, signal?: AbortSignal): Promise<string> {

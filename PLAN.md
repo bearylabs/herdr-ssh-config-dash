@@ -2,7 +2,7 @@
 
 ## Product contract
 
-- Ship a new plugin with id `herdr-ssh-config-picker` (not `herdr-remote-picker`) and `min_herdr_version = "0.9.1"`.
+- Ship a new plugin with id `herdr-ssh-config-dash` (not `herdr-remote-picker`) and `min_herdr_version = "0.9.1"`.
 - The popup lists concrete aliases declared by the user's `~/.ssh/config` graph. A checked row means that at least one saved Herdr machine targets that alias; it does **not** mean that an existing profile is enabled.
 - Checking an unsaved alias runs the supported CLI as argv, never through a shell or by editing Herdr state: `herdr machine add <alias> --label <alias> --remote-session default`.
 - Unchecking confirms the destructive action, then runs `herdr machine remove <profile-id>` for every matching profile (enabled or disabled, in every remote session). This is intentionally removal rather than disable so the native sidebar drops the machine on its normal catalog reload, without a Herdr change.
@@ -31,7 +31,7 @@
 
 ## Manifest and documentation
 
-- Declare a global `manage` action and `picker` popup in `herdr-plugin.toml`, using `HERDR_PLUGIN_ID` when opening it and dimensions similar to the old picker. Add package/build/typecheck/test scripts and document local linking, the qualified action id `herdr-ssh-config-picker.manage`, controls, matching rules, default remote session, and the destructive remove semantics.
+- Declare a global `manage` action and `picker` popup in `herdr-plugin.toml`, using `HERDR_PLUGIN_ID` when opening it and dimensions similar to the old picker. Add package/build/typecheck/test scripts and document local linking, the qualified action id `herdr-ssh-config-dash.manage`, controls, matching rules, default remote session, and the destructive remove semantics.
 - State clearly that adding can contact/install/update the remote Herdr server and may prompt, while removing only forgets the local profile and leaves remote sessions/agents running, matching the Herdr 0.9.1 CLI documentation.
 
 ## Verification
